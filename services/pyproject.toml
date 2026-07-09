@@ -1,0 +1,24 @@
+[project]
+name = "prospect-flow-services"
+version = "0.1.0"
+description = "Backend services for the prospect-flow app (voice call, booking, deck, email)"
+requires-python = ">=3.12"
+dependencies = [
+    "gradbot>=0.1.9",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "python-dotenv>=1.0",
+    "pydantic>=2.13.4",
+    "google-auth>=2.55.2",
+    "google-auth-oauthlib>=1.4.0",
+    "google-api-python-client>=2.198.0",
+    "requests>=2.34.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

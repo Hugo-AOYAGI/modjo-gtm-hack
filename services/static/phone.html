@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Prospect Phone</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Hanken Grotesk', system-ui, sans-serif;
+      background: #0a0a0f;
+      color: #fff;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    .phone {
+      position: relative;
+      height: 100dvh;
+      background: linear-gradient(180deg, #1e1b2e 0%, #17151f 55%, #0a0a0f 100%);
+      display: flex; flex-direction: column;
+    }
+    .screen {
+      flex: 1; display: none; flex-direction: column; align-items: center;
+      padding: max(48px, env(safe-area-inset-top)) 28px calc(24px + env(safe-area-inset-bottom));
+      min-height: 0;
+    }
+    .screen.active { display: flex; }
+
+    .avatar-wrap { position: relative; }
+    .avatar {
+      width: 116px; height: 116px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 12px 30px rgba(99,102,241,0.35);
+    }
+    .avatar svg { width: 52px; height: 52px; }
+    .ping { position: absolute; inset: 0; border-radius: 50%; background: rgba(255,255,255,0.12); animation: ping 1.6s cubic-bezier(0,0,0.2,1) infinite; }
+    @keyframes ping { 0% { transform: scale(1); opacity: .7; } 80%,100% { transform: scale(1.7); opacity: 0; } }
+
+    .label { font-size: 13px; letter-spacing: .04em; color: rgba(255,255,255,0.5); }
+    .name { font-size: 26px; font-weight: 600; margin-top: 4px; }
+    .sub { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+
+    .spacer { flex: 1; min-height: 0; }
+    .actions { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 320px; }
+    .action { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .btn {
+      width: 66px; height: 66px; border: none; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3); transition: transform .12s; flex-shrink: 0;
+    }
+    .btn:active { transform: scale(0.93); }
+    .btn svg { width: 28px; height: 28px; color: #fff; }
+    .btn.accept { background: #22c55e; }
+    .btn.decline, .btn.end { background: #ef4444; }
+    /* answer button pulses while the phone is ringing */
+    #s-incoming.active .btn.accept { animation: ringpulse 1.1s ease-in-out infinite; }
+    @keyframes ringpulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 8px 20px rgba(34,197,94,0.35); }
+      50% { transform: scale(1.09); box-shadow: 0 10px 28px rgba(34,197,94,0.6); }
+    }
+    .btn-caption { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+    .captions { width: 100%; flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 22px 0 16px; display: flex; flex-direction: column; gap: 8px; }
+    .bubble { font-size: 14px; line-height: 1.45; padding: 9px 13px; border-radius: 16px; max-width: 88%; }
+    .bubble.agent { background: rgba(255,255,255,0.12); align-self: flex-start; border-bottom-left-radius: 4px; }
+    .bubble.me { background: #6366f1; align-self: flex-end; border-bottom-right-radius: 4px; }
+
+    .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+    .muted-circle { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: center; }
+    .muted-circle svg { width: 26px; height: 26px; color: rgba(255,255,255,0.4); }
+    .call-icon { width: 24px; height: 24px; }
+  </style>
+</head>
+<body>
+  <audio id="ringtone" src="static/ring.wav" loop preload="auto"></audio>
+  <div class="phone">
+    <!-- idle -->
+    <section class="screen active" id="s-idle">
+      <div class="center">
+        <div class="muted-circle">
+          <svg class="call-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <p class="label" id="idle-hint">Tap once to enable sound, then wait…</p>
+      </div>
+    </section>
+
+    <!-- incoming -->
+    <section class="screen" id="s-incoming">
+      <p class="label">Incoming call</p>
+      <div class="avatar-wrap" style="margin-top: 32px;">
+        <span class="ping"></span>
+        <div class="avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14M7.76 16.24a6 6 0 0 1 0-8.48M16.24 7.76a6 6 0 0 1 0 8.48M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        </div>
+      </div>
+      <div class="name" style="margin-top: 24px;">Modjo</div>
+      <div class="sub" id="incoming-sub">Sales</div>
+      <div class="spacer"></div>
+      <div class="actions">
+        <div class="action">
+          <button class="btn decline" id="btn-decline" aria-label="Decline">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(135deg)"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </button>
+          <span class="btn-caption">Decline</span>
+        </div>
+        <div class="action">
+          <button class="btn accept" id="btn-accept" aria-label="Accept">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </button>
+          <span class="btn-caption">Accept</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- in-call -->
+    <section class="screen" id="s-incall">
+      <div class="avatar" style="width: 84px; height: 84px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14M7.76 16.24a6 6 0 0 1 0-8.48M16.24 7.76a6 6 0 0 1 0 8.48M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+      </div>
+      <div class="name" style="font-size: 20px; margin-top: 12px;">Modjo</div>
+      <div class="sub" id="call-status">Connecting…</div>
+      <div class="captions" id="captions"></div>
+      <button class="btn end" id="btn-end" aria-label="End call">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(135deg)"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </button>
+    </section>
+
+    <!-- ended -->
+    <section class="screen" id="s-ended">
+      <div class="center">
+        <div class="muted-circle">
+          <svg class="call-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(135deg)"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <p class="label">Call ended</p>
+      </div>
+    </section>
+  </div>
+
+  <script src="static/js/opus-encoder.js"></script>
+  <script src="static/js/audio-processor.js"></script>
+  <script src="static/js/synced-audio-player.js"></script>
+  <script>fetch("api/audio-config").then(r => r.json()).then(c => { window.__pcmOutput = c.pcm; }).catch(() => {});</script>
+  <script>
+    const screens = {
+      idle: document.getElementById('s-idle'),
+      incoming: document.getElementById('s-incoming'),
+      incall: document.getElementById('s-incall'),
+      ended: document.getElementById('s-ended'),
+    };
+    function show(name) {
+      Object.values(screens).forEach(s => s.classList.remove('active'));
+      screens[name].classList.add('active');
+      // Ring only while the incoming screen is up.
+      if (name === 'incoming') startRing(); else stopRing();
+    }
+
+    // --- ringtone (real audio file; the <audio loop> has the 3s silence baked
+    // in, so it rings on a natural cadence). Browsers gate playback until a user
+    // gesture, so the idle screen asks for one tap to "arm" it (and plays a short
+    // test so you can confirm sound BEFORE dialing).
+    const ringtone = document.getElementById('ringtone');
+    let ringing = false, audioArmed = false, vibrTimer = null;
+    // Route the <audio> through a Web Audio gain node so we can amplify it well
+    // past the file's own ceiling (the OS volume alone tops out too quiet).
+    let actx = null, boosted = false;
+    const RING_GAIN = 4.0; // bump this if you need it even louder
+
+    function buildBoost() {
+      if (boosted) return;
+      try {
+        actx = new (window.AudioContext || window.webkitAudioContext)();
+        const src = actx.createMediaElementSource(ringtone);
+        const gain = actx.createGain();
+        gain.gain.value = RING_GAIN;
+        src.connect(gain);
+        gain.connect(actx.destination);
+        boosted = true;
+      } catch { /* fall back to the plain element output */ }
+    }
+
+    function armAudio() {
+      if (audioArmed) {
+        if (actx && actx.state === 'suspended') actx.resume().catch(() => {});
+        return;
+      }
+      buildBoost();
+      if (actx && actx.state === 'suspended') actx.resume().catch(() => {});
+      const idleActive = screens.idle.classList.contains('active');
+      ringtone.currentTime = 0;
+      ringtone.play().then(() => {
+        audioArmed = true;
+        if (idleActive) {
+          document.getElementById('idle-hint').textContent = '✓ Sound ready — waiting for the call…';
+          // let one burst play as confirmation, then reset (unless a real call started)
+          setTimeout(() => { if (!ringing) { ringtone.pause(); ringtone.currentTime = 0; } }, 1300);
+        } else {
+          ringtone.pause();
+          ringtone.currentTime = 0;
+        }
+      }).catch(() => {
+        document.getElementById('idle-hint').textContent = 'Tap the screen to enable sound';
+      });
+    }
+
+    function startRing() {
+      if (ringing) return;
+      ringing = true;
+      try { ringtone.currentTime = 0; ringtone.play().catch(() => {}); } catch {}
+      try { navigator.vibrate && navigator.vibrate([500, 220, 500]); } catch {}
+      vibrTimer = setInterval(() => {
+        try { navigator.vibrate && navigator.vibrate([500, 220, 500]); } catch {}
+      }, 4000); // matches the ring.wav loop length
+    }
+
+    function stopRing() {
+      ringing = false;
+      try { ringtone.pause(); ringtone.currentTime = 0; } catch {}
+      if (vibrTimer) { clearInterval(vibrTimer); vibrTimer = null; }
+      try { navigator.vibrate && navigator.vibrate(0); } catch {}
+    }
+
+    // Any tap arms audio (satisfies the browser's autoplay gesture requirement).
+    document.addEventListener('pointerdown', armAudio);
+
+    // Boost the bot's VOICE: gradbot's player wires its playback worklet straight
+    // to the speakers, so we splice a gain + limiter into that path (louder
+    // without harsh clipping — the limiter tames peaks). Called after start().
+    const VOICE_GAIN = 3.5; // bump this if the voice still isn't loud enough
+    function boostPlayer(p) {
+      try {
+        const ap = p && p.audioProcessor;
+        if (!ap || !ap.audioContext || !ap.outputWorklet) return;
+        const ctx = ap.audioContext;
+        const gain = ctx.createGain();
+        gain.gain.value = VOICE_GAIN;
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -10;
+        limiter.knee.value = 6;
+        limiter.ratio.value = 20;
+        limiter.attack.value = 0.003;
+        limiter.release.value = 0.25;
+        try { ap.outputWorklet.disconnect(ctx.destination); } catch {}
+        ap.outputWorklet.connect(gain);
+        gain.connect(limiter);
+        limiter.connect(ctx.destination);
+      } catch (e) { console.warn('voice boost failed', e); }
+    }
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const base = `${proto}//${location.host}`;
+
+    // --- ring channel (auto-reconnecting, so a backend restart can't kill it) ---
+    let controlWs = null;
+    function connectControl() {
+      controlWs = new WebSocket(`${base}/ws/phone`);
+      controlWs.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === 'incoming') {
+            const p = msg.prospect || {};
+            document.getElementById('incoming-sub').textContent = p.company ? `re: ${p.company}` : 'Sales';
+            if (screens.incall.classList.contains('active')) return;
+            show('incoming');
+          }
+        } catch {}
+      };
+      controlWs.onclose = () => setTimeout(connectControl, 1500);
+      controlWs.onerror = () => { try { controlWs.close(); } catch {} };
+    }
+    connectControl();
+
+    // --- call ---
+    let ws = null, player = null, timerId = null, seconds = 0;
+    // Call lifecycle guards — make start/teardown bullet-proof.
+    let answering = false;   // a call attempt is in progress (guards double-tap)
+    let callOpened = false;  // ws reached OPEN
+    let startSent = false;   // the {type:start} handshake was sent
+    let callDone = false;    // this attempt has been torn down
+
+    let agentBubbles = {};
+    let userBubble = null;
+    let hadAgentSinceUser = false;
+
+    function bubbleFor(turnIdx, isAgent) {
+      const container = document.getElementById('captions');
+      if (isAgent) {
+        let el = agentBubbles[turnIdx];
+        if (!el) {
+          hadAgentSinceUser = true;
+          el = document.createElement('div');
+          el.className = 'bubble agent';
+          container.appendChild(el);
+          agentBubbles[turnIdx] = el;
+        }
+        return el;
+      }
+      if (userBubble && !hadAgentSinceUser) return userBubble;
+      hadAgentSinceUser = false;
+      userBubble = document.createElement('div');
+      userBubble.className = 'bubble me';
+      container.appendChild(userBubble);
+      return userBubble;
+    }
+
+    function addCaption(text, isAgent, turnIdx) {
+      const el = bubbleFor(turnIdx, isAgent);
+      el.textContent += text + ' ';
+      const container = document.getElementById('captions');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function setStatus(t) { document.getElementById('call-status').textContent = t; }
+
+    function startTimer() {
+      setStatus('00:00');
+      seconds = 0;
+      timerId = setInterval(() => {
+        seconds++;
+        const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const ss = String(seconds % 60).padStart(2, '0');
+        setStatus(`${mm}:${ss}`);
+      }, 1000);
+    }
+
+    function teardown(sendStop) {
+      callDone = true;
+      answering = false;
+      if (timerId) { clearInterval(timerId); timerId = null; }
+      if (player) { try { player.stop(); } catch {} player = null; }
+      if (ws) {
+        try { if (sendStop && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'stop' })); } catch {}
+        try { ws.close(); } catch {}
+        ws = null;
+      }
+    }
+
+    // Call ended normally (was connected) → show ended screen.
+    function finishCall() {
+      if (callDone) return;
+      teardown(false);
+      show('ended');
+    }
+
+    // Call never connected → let the presenter simply tap Answer again.
+    function failCall(msg) {
+      if (callDone) return;
+      teardown(false);
+      document.getElementById('incoming-sub').textContent = msg;
+      show('incoming');
+    }
+
+    async function answer() {
+      if (answering) return; // ignore double-taps
+      answering = true;
+      callOpened = false; startSent = false; callDone = false;
+      agentBubbles = {}; userBubble = null; hadAgentSinceUser = false;
+      document.getElementById('captions').innerHTML = '';
+      show('incall');
+      setStatus('Connecting…');
+
+      player = new SyncedAudioPlayer({
+        basePath: 'static/js',
+        sampleRate: 24000,
+        pcmOutput: window.__pcmOutput || false,
+        echoCancellation: true,
+        // Only forward mic audio AFTER the start handshake, so the server's
+        // first frame is guaranteed to be {type:start}, never stray Opus.
+        onEncodedAudio: (opus) => {
+          if (startSent && ws && ws.readyState === WebSocket.OPEN) ws.send(opus);
+        },
+        onText: ({ text, turnIdx, isUser }) => addCaption(text, !isUser, turnIdx),
+        onEvent: () => {},
+        onError: (e) => { console.error('player error', e); },
+      });
+
+      try {
+        await player.start(); // playback ready (so the bot's greeting isn't missed) + mic
+      } catch (e) {
+        console.error('mic error', e);
+        failCall('Allow microphone access, then tap Answer');
+        return;
+      }
+      if (callDone) return; // hung up during mic init
+      boostPlayer(player); // amplify the bot's voice for the room
+
+      ws = new WebSocket(`${base}/ws/prospect-call`);
+      const connectTimeout = setTimeout(() => {
+        if (!callOpened) failCall('Could not connect — tap Answer to retry');
+      }, 8000);
+
+      ws.onopen = () => {
+        callOpened = true;
+        clearTimeout(connectTimeout);
+        ws.send(JSON.stringify({ type: 'start' })); // handshake FIRST
+        startSent = true;
+        startTimer();
+      };
+      ws.onmessage = (ev) => { try { player && player.handleMessage(ev.data); } catch (e) { console.error(e); } };
+      ws.onclose = () => {
+        clearTimeout(connectTimeout);
+        callOpened ? finishCall() : failCall('Disconnected — tap Answer to retry');
+      };
+      ws.onerror = () => {
+        clearTimeout(connectTimeout);
+        callOpened ? finishCall() : failCall('Connection error — tap Answer to retry');
+      };
+    }
+
+    document.getElementById('btn-accept').addEventListener('click', answer);
+    document.getElementById('btn-decline').addEventListener('click', () => { teardown(false); show('ended'); });
+    document.getElementById('btn-end').addEventListener('click', () => finishCall());
+  </script>
+</body>
+</html>
