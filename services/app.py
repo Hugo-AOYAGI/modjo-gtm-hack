@@ -56,16 +56,38 @@ active_call: dict = {"ws": None}
 # Monotonic id per prospect-call session, for lifecycle tracing in the log.
 _session_seq = itertools.count(1)
 
-# Lazily-built Google API services (OAuth token is already cached).
-_google: dict = {}
+# Google API calls run in worker threads (asyncio.to_thread). httplib2 — the
+# transport under googleapiclient — is NOT thread-safe and keeps sockets alive,
+# so a cached/shared service reuses dead keep-alive sockets across threads and
+# fails intermittently with WinError 10053. Fix: build a FRESH service INSIDE
+# each worker thread so every call gets its own short-lived connection. Creds
+# (with their refresh token) are cheap to reload from disk and safe to share.
+def _book(prospect: Prospect, when: datetime.datetime):
+    creds = auth.get_credentials()
+    cal = calendar_client.build_service(creds)
+    return booking.create_booking(
+        calendar_client.insert_event_via_api(cal), prospect, when
+    )
 
 
-def _google_services():
-    if "cal" not in _google:
-        creds = auth.get_credentials()
-        _google["cal"] = calendar_client.build_service(creds)
-        _google["gmail"] = gmail_client.build_service(creds)
-    return _google["cal"], _google["gmail"]
+def _send_bdr(prospect: Prospect, result) -> None:
+    creds = auth.get_credentials()
+    gmail = gmail_client.build_service(creds)
+    emailer.send_bdr_email(
+        gmail_client.send_raw_via_gmail(gmail),
+        prospect,
+        result,
+        BDR_EMAIL,
+        CALL_RECORDING_URL,
+    )
+
+
+def _send_prospect(prospect: Prospect, result) -> None:
+    creds = auth.get_credentials()
+    gmail = gmail_client.build_service(creds)
+    emailer.send_prospect_email(
+        gmail_client.send_raw_via_gmail(gmail), prospect, result, DECK_URL
+    )
 
 
 # Milestone events for the current call cycle (call_started, tool_event,
@@ -250,13 +272,7 @@ async def on_prospect_tool_call(handle, input_handle, websocket):
         when = when.astimezone()  # treat a bare datetime as local time
 
     try:
-        cal_service, _ = await asyncio.to_thread(_google_services)
-        result = await asyncio.to_thread(
-            booking.create_booking,
-            calendar_client.insert_event_via_api(cal_service),
-            prospect,
-            when,
-        )
+        result = await asyncio.to_thread(_book, prospect, when)
     except Exception:
         logger.exception("calendar booking failed")
         await handle.send_error("The calendar booking failed — try another time.")
@@ -291,8 +307,6 @@ async def _send_followups(prospect: Prospect, result) -> None:
     These are emitted as `artifact` milestones so the sales timeline renders
     them as their own post-call cards (deck card + two email cards).
     """
-    _, gmail_service = await asyncio.to_thread(_google_services)
-    send_raw = gmail_client.send_raw_via_gmail(gmail_service)
     first = prospect.name.split(" ")[0]
 
     # 1. Deck (pre-made presentation link).
@@ -308,9 +322,7 @@ async def _send_followups(prospect: Prospect, result) -> None:
     )
 
     # 2. BDR briefing email (links to the real Modjo call recording).
-    await asyncio.to_thread(
-        emailer.send_bdr_email, send_raw, prospect, result, BDR_EMAIL, CALL_RECORDING_URL
-    )
+    await asyncio.to_thread(_send_bdr, prospect, result)
     await _emit(
         {
             "type": "artifact",
@@ -323,9 +335,7 @@ async def _send_followups(prospect: Prospect, result) -> None:
     )
 
     # 3. Prospect follow-up email with the deck.
-    await asyncio.to_thread(
-        emailer.send_prospect_email, send_raw, prospect, result, DECK_URL
-    )
+    await asyncio.to_thread(_send_prospect, prospect, result)
     await _emit(
         {
             "type": "artifact",
@@ -459,13 +469,7 @@ async def ws_prospect_call(websocket: fastapi.WebSocket):
                 try:
                     if result is None:
                         when = _default_slot()
-                        cal_service, _ = await asyncio.to_thread(_google_services)
-                        result = await asyncio.to_thread(
-                            booking.create_booking,
-                            calendar_client.insert_event_via_api(cal_service),
-                            prospect,
-                            when,
-                        )
+                        result = await asyncio.to_thread(_book, prospect, when)
                         SESSION["booking"] = result
                         await _emit(
                             {

@@ -12,10 +12,13 @@ def build_service(creds: Credentials):
 
 def insert_event_via_api(service) -> InsertEventFn:
     def insert_event(body: dict) -> dict:
+        # num_retries lets googleapiclient retry transient failures
+        # (connection aborts / 5xx) with backoff — belt-and-braces on top of
+        # the fresh-per-thread service.
         return (
             service.events()
             .insert(calendarId="primary", body=body, sendUpdates="all")
-            .execute()
+            .execute(num_retries=3)
         )
 
     return insert_event

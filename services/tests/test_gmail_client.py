@@ -5,7 +5,7 @@ class FakeSend:
     def __init__(self, calls):
         self._calls = calls
 
-    def execute(self):
+    def execute(self, num_retries=0):
         self._calls.append("executed")
 
 

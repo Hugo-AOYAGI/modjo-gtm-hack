@@ -12,6 +12,9 @@ def build_service(creds: Credentials):
 
 def send_raw_via_gmail(service) -> SendRaw:
     def send_raw(raw: str) -> None:
-        service.users().messages().send(userId="me", body={"raw": raw}).execute()
+        # num_retries → googleapiclient retries transient connection aborts / 5xx.
+        service.users().messages().send(
+            userId="me", body={"raw": raw}
+        ).execute(num_retries=3)
 
     return send_raw
